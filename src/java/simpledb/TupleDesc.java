@@ -33,6 +33,17 @@ public class TupleDesc implements Serializable {
         public String toString() {
             return fieldName + "(" + fieldType + ")";
         }
+
+        public boolean equals(Object obj) {
+            if(obj==null)return false;
+            if (obj==this)return true;
+            if (getClass() !=obj.getClass()){
+                return false;
+            }
+            TDItem tdItem = (TDItem) obj;
+
+            return tdItem.fieldName.equals(this.fieldName)&&tdItem.fieldType.equals(this.fieldType);
+        }
     }
     //my code
     private List<TDItem> tdItems;
@@ -204,16 +215,17 @@ public class TupleDesc implements Serializable {
      * @return true if the object is equal to this TupleDesc.
      */
 
-    public boolean equals(TupleDesc o) {
+    public boolean equals(Object o) {
         // some code goes here
         if(o == null){
             return false;
         }
-        if(o.numFields()!= tdItems.size()){
+        TupleDesc TDo = (TupleDesc)o;
+        if(TDo.tdItems.size() != tdItems.size()){
             return false;
         }
-        for (int i = 0; i <o.numFields(); i++) {
-            if(o.tdItems.get(i).fieldType != tdItems.get(i).fieldType){
+        for (int i = 0; i < tdItems.size(); i++) {
+            if(TDo.tdItems.get(i).fieldType != tdItems.get(i).fieldType){
                 return false;
             }
         }
