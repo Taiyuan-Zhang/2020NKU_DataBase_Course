@@ -33,17 +33,6 @@ public class TupleDesc implements Serializable {
         public String toString() {
             return fieldName + "(" + fieldType + ")";
         }
-
-        public boolean equals(Object obj) {
-            if(obj==null)return false;
-            if (obj==this)return true;
-            if (getClass() !=obj.getClass()){
-                return false;
-            }
-            TDItem tdItem = (TDItem) obj;
-
-            return tdItem.fieldName.equals(this.fieldName)&&tdItem.fieldType.equals(this.fieldType);
-        }
     }
     //my code
     private List<TDItem> tdItems;
@@ -200,8 +189,7 @@ public class TupleDesc implements Serializable {
         typeList.toArray(typeAr);
         String[] filedAr = new String[filedList.size()];
         filedList.toArray(filedAr);
-        TupleDesc td3 = new TupleDesc(typeAr, filedAr);
-        return td3;
+        return new TupleDesc(typeAr, filedAr);
     }
 
     /**
@@ -217,19 +205,18 @@ public class TupleDesc implements Serializable {
 
     public boolean equals(Object o) {
         // some code goes here
-        if(o == null){
-            return false;
-        }
-        TupleDesc TDo = (TupleDesc)o;
-        if(TDo.tdItems.size() != tdItems.size()){
-            return false;
-        }
-        for (int i = 0; i < tdItems.size(); i++) {
-            if(TDo.tdItems.get(i).fieldType != tdItems.get(i).fieldType){
-                return false;
+        if(this.getClass().isInstance(o)) {
+            TupleDesc TDo = (TupleDesc) o;
+            if (this.numFields() == TDo.numFields()) {
+                for (int i = 0; i < tdItems.size(); i++) {
+                    if (TDo.tdItems.get(i).fieldType != tdItems.get(i).fieldType) {
+                        return false;
+                    }
+                }
+                return true;
             }
         }
-        return true;
+        return false;
     }
 
     public int hashCode() {
@@ -247,12 +234,12 @@ public class TupleDesc implements Serializable {
      */
     public String toString() {
         // some code goes here
-        String s = "";
+        StringBuilder s = new StringBuilder();
         int size = tdItems.size();
         for (int i = 0; i < size-1; i++) {
-            s = s+tdItems.get(i).fieldType+"["+i+"]("+tdItems.get(i).fieldName+"["+i+"]),";
+            s.append(tdItems.get(i).fieldType).append("[").append(i).append("](").append(tdItems.get(i).fieldName).append("[").append(i).append("]),");
         }
-        s = s+tdItems.get(size-1).fieldType+"["+(size-1)+"]("+tdItems.get(size-1).fieldName+"["+(size-1)+"])";
-        return s;
+        s.append(tdItems.get(size - 1).fieldType).append("[").append(size - 1).append("](").append(tdItems.get(size - 1).fieldName).append("[").append(size - 1).append("])");
+        return s.toString();
     }
 }

@@ -19,18 +19,26 @@ import java.util.concurrent.ConcurrentHashMap;
 public class Catalog {
 
     //my code
-    private List<DbFile>files;
-    private List<String>names;
-    private List<String>pkeyFields;
+    private List<Table>tables;
+
+    private class Table{
+        private DbFile dbFile;
+        private String tableName;
+        private String pkeyField;
+
+        private Table(DbFile file, String name, String pkeyField){
+            dbFile = file;
+            tableName = name;
+            this.pkeyField = pkeyField;
+        }
+    }
     /**
      * Constructor.
      * Creates a new, empty catalog.
      */
     public Catalog() {
         // some code goes here
-        files = new ArrayList<>();
-        names = new ArrayList<>();
-        pkeyFields = new ArrayList<>();
+        tables = new ArrayList<>();
     }
 
     /**
@@ -44,30 +52,19 @@ public class Catalog {
      */
     public void addTable(DbFile file, String name, String pkeyField) {
         // some code goes here
-        if(names.contains(name)){
-            int cfNameID = names.lastIndexOf(name);
-            files.remove(cfNameID);
-            names.remove(cfNameID);
-            pkeyFields.remove(cfNameID);
-        }
-        if(!files.isEmpty()) {
-            int cfFileID = 0;
-            boolean removeFlag = false;
-            for (int i = 0; i < files.size(); i++) {
-                if (files.get(i).getId() == file.getId()) {
-                    cfFileID = i;
-                    removeFlag = true;
-                }
-            }
-            if(removeFlag) {
-                files.remove(cfFileID);
-                names.remove(cfFileID);
-                pkeyFields.remove(cfFileID);
+        Table table = new Table(file, name, pkeyField);
+        int removeID = 0;
+        boolean flag = false;
+        for (int i = 0; i < tables.size(); i++) {
+            if(tables.get(i).dbFile.getId() == file.getId()||tables.get(i).tableName == name){
+                removeID = i;
+                flag = true;
             }
         }
-        files.add(file);
-        names.add(name);
-        pkeyFields.add(pkeyField);
+        if(flag){
+            tables.remove(removeID);
+        }
+        tables.add(table);
     }
 
     public void addTable(DbFile file, String name) {
@@ -94,9 +91,9 @@ public class Catalog {
         if(name == null){
             throw new NoSuchElementException();
         }
-        for (int i = 0; i < names.size(); i++) {
-            if(names.get(i).equals(name)){
-                return files.get(i).getId();
+        for (int i = 0; i < tables.size(); i++) {
+            if(tables.get(i).tableName.equals(name)){
+                return tables.get(i).dbFile.getId();
             }
         }
         throw new NoSuchElementException();
@@ -110,9 +107,9 @@ public class Catalog {
      */
     public TupleDesc getTupleDesc(int tableid) throws NoSuchElementException {
         // some code goes here
-        for (int i = 0; i < files.size(); i++) {
-            if(files.get(i).getId() == tableid){
-                return files.get(i).getTupleDesc();
+        for (int i = 0; i < tables.size(); i++) {
+            if(tables.get(i).dbFile.getId() == tableid){
+                return tables.get(i).dbFile.getTupleDesc();
             }
         }
         throw new NoSuchElementException();
@@ -126,9 +123,9 @@ public class Catalog {
      */
     public DbFile getDatabaseFile(int tableid) throws NoSuchElementException {
         // some code goes here
-        for (int i = 0; i < files.size(); i++) {
-            if(files.get(i).getId() == tableid){
-                return files.get(i);
+        for (int i = 0; i < tables.size(); i++) {
+            if(tables.get(i).dbFile.getId() == tableid){
+                return tables.get(i).dbFile;
             }
         }
         throw new NoSuchElementException();
@@ -136,9 +133,9 @@ public class Catalog {
 
     public String getPrimaryKey(int tableid) {
         // some code goes here
-        for (int i = 0; i < files.size(); i++) {
-            if(files.get(i).getId() == tableid){
-                return pkeyFields.get(i);
+        for (int i = 0; i < tables.size(); i++) {
+            if(tables.get(i).dbFile.getId() == tableid){
+                return tables.get(i).pkeyField;
             }
         }
         throw new NoSuchElementException();
@@ -151,9 +148,9 @@ public class Catalog {
 
     public String getTableName(int id) {
         // some code goes here
-        for (int i = 0; i < files.size(); i++) {
-            if(files.get(i).getId() == id){
-                return names.get(i);
+        for (int i = 0; i < tables.size(); i++) {
+            if(tables.get(i).dbFile.getId() == id){
+                return tables.get(i).tableName;
             }
         }
         throw new NoSuchElementException();
@@ -162,9 +159,7 @@ public class Catalog {
     /** Delete all tables from the catalog */
     public void clear() {
         // some code goes here
-        files.clear();
-        names.clear();
-        pkeyFields.clear();
+        tables.clear();
     }
     
     /**
