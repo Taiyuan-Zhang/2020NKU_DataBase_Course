@@ -143,7 +143,11 @@ public class Catalog {
 
     public Iterator<Integer> tableIdIterator() {
         // some code goes here
-        return null;
+        List<Integer> tableId = new ArrayList<>();
+        for (int i = 0; i < tables.size(); i++) {
+            tableId.add(tables.get(i).dbFile.getId());
+        }
+        return tableId.iterator();
     }
 
     public String getTableName(int id) {
