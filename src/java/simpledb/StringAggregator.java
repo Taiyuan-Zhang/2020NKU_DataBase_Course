@@ -1,11 +1,20 @@
 package simpledb;
 
+import java.util.*;
+
 /**
  * Knows how to compute some aggregate over a set of StringFields.
  */
 public class StringAggregator implements Aggregator {
 
     private static final long serialVersionUID = 1L;
+
+    //my code
+    private int gbfield;
+    private Type gbfieldtype;
+    private int afield;
+    private Op what;
+    private Map<Field, Integer> GroupByMap;
 
     /**
      * Aggregate constructor
@@ -18,6 +27,11 @@ public class StringAggregator implements Aggregator {
 
     public StringAggregator(int gbfield, Type gbfieldtype, int afield, Op what) {
         // some code goes here
+        this.gbfield = gbfield;
+        this.gbfieldtype = gbfieldtype;
+        this.afield = afield;
+        this.what = what;
+        this.GroupByMap = new HashMap<>();
     }
 
     /**
@@ -26,6 +40,14 @@ public class StringAggregator implements Aggregator {
      */
     public void mergeTupleIntoGroup(Tuple tup) {
         // some code goes here
+        Field gbfield = this.gbfield == NO_GROUPING ? null : tup.getField(this.gbfield);
+        if(gbfield != null&&this.gbfieldtype != gbfield.getType()){
+            throw new IllegalArgumentException();
+        }
+        if (this.GroupByMap.containsKey(gbfield)) {
+            this.GroupByMap.put(gbfield, this.GroupByMap.get(gbfield) + 1);
+        }
+        else this.GroupByMap.put(gbfield, 1);
     }
 
     /**
@@ -38,7 +60,30 @@ public class StringAggregator implements Aggregator {
      */
     public OpIterator iterator() {
         // some code goes here
-        throw new UnsupportedOperationException("please implement me for lab2");
+        List<Tuple>tupleList = new ArrayList<>();
+        if(this.gbfield != NO_GROUPING){
+            TupleDesc tupleDesc = new TupleDesc(new Type[]{this.gbfieldtype, Type.INT_TYPE}, new String[]{"groupVal","aggregateVal"});
+            Iterator<Map.Entry<Field, Integer>> it = this.GroupByMap.entrySet().iterator();
+            for (int i = 0; i < this.GroupByMap.entrySet().size(); i++) {
+                Map.Entry<Field, Integer>entry = it.next();
+                Tuple tuple = new Tuple(tupleDesc);
+                tuple.setField(0, entry.getKey());
+                tuple.setField(1, new IntField(entry.getValue()));
+                tupleList.add(tuple);
+            }
+            return new TupleIterator(tupleDesc, tupleList);
+        }
+        else{
+            TupleDesc tupleDesc = new TupleDesc(new Type[]{Type.INT_TYPE}, new String[]{"aggregateVal"});
+            Iterator<Integer>it = this.GroupByMap.values().iterator();
+            for (int i = 0; i < this.GroupByMap.values().size(); i++) {
+                int aggregateVal = it.next();
+                Tuple tuple = new Tuple(tupleDesc);
+                tuple.setField(0, new IntField(aggregateVal));
+                tupleList.add(tuple);
+            }
+            return new TupleIterator(tupleDesc, tupleList);
+        }
     }
 
 }
