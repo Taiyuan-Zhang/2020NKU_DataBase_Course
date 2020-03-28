@@ -75,6 +75,9 @@ public class BufferPool {
         throws TransactionAbortedException, DbException {
         // some code goes here
         if(!currentPages.containsKey(pid)){
+            if(currentPages.size() > numPages){
+                evictPage();
+            }
             DbFile dbFile = Database.getCatalog().getDatabaseFile(pid.getTableId());
             Page page = dbFile.readPage(pid);
             currentPages.put(pid, page);
@@ -170,7 +173,7 @@ public class BufferPool {
      * @param tid the transaction deleting the tuple.
      * @param t the tuple to delete
      */
-    public  void deleteTuple(TransactionId tid, Tuple t)
+    public void deleteTuple(TransactionId tid, Tuple t)
         throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
@@ -194,6 +197,9 @@ public class BufferPool {
     public synchronized void flushAllPages() throws IOException {
         // some code goes here
         // not necessary for lab1
+        for (Page page:currentPages.values()) {
+            flushPage(page.getId());
+        }
 
     }
 
@@ -208,6 +214,7 @@ public class BufferPool {
     public synchronized void discardPage(PageId pid) {
         // some code goes here
         // not necessary for lab1
+        currentPages.remove(pid);
     }
 
     /**
@@ -217,6 +224,9 @@ public class BufferPool {
     private synchronized  void flushPage(PageId pid) throws IOException {
         // some code goes here
         // not necessary for lab1
+        Page page = currentPages.get(pid);
+        Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(page);
+        page.markDirty(false, null);
     }
 
     /** Write all pages of the specified transaction to disk.
@@ -233,6 +243,13 @@ public class BufferPool {
     private synchronized  void evictPage() throws DbException {
         // some code goes here
         // not necessary for lab1
+        PageId pid = new ArrayList<>(currentPages.keySet()).get(0);
+        try{
+            flushPage(pid);
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        discardPage(pid);
     }
 
 }
