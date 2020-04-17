@@ -276,8 +276,44 @@ public class BTreeFile implements DbFile {
 		// the new entry.  getParentWithEmtpySlots() will be useful here.  Don't forget to update
 		// the sibling pointers of all the affected leaf pages.  Return the page into which a 
 		// tuple with the given key field should be inserted.
-        return null;
-		
+		BTreeLeafPage newRightSibling = (BTreeLeafPage)getEmptyPage(tid, dirtypages, BTreePageId.LEAF);
+		int count = (page.getNumTuples() + 1) / 2;
+		Iterator<Tuple> it = page.reverseIterator();
+		while(it.hasNext() && count > 1){
+			Tuple tupleToMove = it.next();
+			page.deleteTuple(tupleToMove);
+			newRightSibling.insertTuple(tupleToMove);
+			count --;
+		}
+		Tuple tupleToMove = it.next();
+		page.deleteTuple(tupleToMove);
+		newRightSibling.insertTuple(tupleToMove);
+		Field midKey = tupleToMove.getField(keyField);
+
+		BTreeInternalPage parent = getParentWithEmptySlots(tid, dirtypages, page.getParentId(), midKey);
+		BTreeEntry newEntryInParent = new BTreeEntry(midKey, page.getId(), newRightSibling.getId());
+		parent.insertEntry(newEntryInParent);
+
+		BTreePageId oldRightSiblingId = page.getRightSiblingId();
+		newRightSibling.setLeftSiblingId(page.getId());
+		newRightSibling.setRightSiblingId(oldRightSiblingId);
+		page.setRightSiblingId(newRightSibling.getId());
+		if(oldRightSiblingId != null){
+			BTreeLeafPage oldRightSibling = (BTreeLeafPage)getPage(tid, dirtypages, oldRightSiblingId, Permissions.READ_WRITE);
+			oldRightSibling.setLeftSiblingId(newRightSibling.getId());
+			dirtypages.put(oldRightSiblingId, oldRightSibling);
+		}
+		newRightSibling.setParentId(parent.getId());
+		page.setParentId(parent.getId());
+
+		dirtypages.put(page.getId(), page);
+		dirtypages.put(newRightSibling.getId(), newRightSibling);
+		dirtypages.put(parent.getId(), parent);
+
+		if(field.compare(Op.GREATER_THAN, midKey)){
+			return newRightSibling;
+		}
+		else return page;
 	}
 	
 	/**
@@ -338,7 +374,7 @@ public class BTreeFile implements DbFile {
 			BTreePageId parentId, Field field) throws DbException, IOException, TransactionAbortedException {
 		
 		BTreeInternalPage parent = null;
-		
+
 		// create a parent node if necessary
 		// this will be the new root of the tree
 		if(parentId.pgcateg() == BTreePageId.ROOT_PTR) {
