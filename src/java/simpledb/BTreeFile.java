@@ -350,7 +350,35 @@ public class BTreeFile implements DbFile {
 		// the parent pointers of all the children moving to the new page.  updateParentPointers()
 		// will be useful here.  Return the page into which an entry with the given key field
 		// should be inserted.
-		return null;
+		BTreeInternalPage newInterNalPage = (BTreeInternalPage)getEmptyPage(tid, dirtypages, BTreePageId.INTERNAL);
+		int count = (page.getNumEntries() + 1) / 2;
+		Iterator<BTreeEntry> it = page.reverseIterator();
+		while(it.hasNext() && count > 1){
+			BTreeEntry entryToMove = it.next();
+			page.deleteKeyAndRightChild(entryToMove);
+			newInterNalPage.insertEntry(entryToMove);
+			count --;
+		}
+		updateParentPointers(tid, dirtypages, newInterNalPage);
+		BTreeEntry entryToMove = it.next();
+		page.deleteKeyAndRightChild(entryToMove);
+		BTreeEntry midEntry = entryToMove;
+		midEntry.setLeftChild(page.getId());
+		midEntry.setRightChild(newInterNalPage.getId());
+
+		BTreeInternalPage parent = getParentWithEmptySlots(tid, dirtypages, page.getParentId(), midEntry.getKey());
+		parent.insertEntry(midEntry);
+		page.setParentId(parent.getId());
+		newInterNalPage.setParentId(parent.getId());
+
+		dirtypages.put(page.getId(), page);
+		dirtypages.put(newInterNalPage.getId(), newInterNalPage);
+		dirtypages.put(parent.getId(), parent);
+
+		if(field.compare(Op.GREATER_THAN, midEntry.getKey())){
+			return newInterNalPage;
+		}
+		else return page;
 	}
 	
 	/**
