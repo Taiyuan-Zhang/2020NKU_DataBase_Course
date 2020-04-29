@@ -240,9 +240,56 @@ public class BTreeFile implements DbFile {
 	 * 
 	 */
 	BTreeLeafPage findLeafPage(TransactionId tid, BTreePageId pid, Permissions perm,
-			Field f) 
+			Field f)
 					throws DbException, TransactionAbortedException {
 		return findLeafPage(tid, new HashMap<PageId, Page>(), pid, perm, f);
+	}
+
+	/**
+	 * my code
+	 * findLeafPageReverse
+	 * for BTreeReverseScan
+	 */
+	private BTreeLeafPage findLeafPageReverse(TransactionId tid, HashMap<PageId, Page> dirtypages, BTreePageId pid, Permissions perm,
+									   Field f)
+			throws DbException, TransactionAbortedException {
+		// some code goes here
+		if(pid.pgcateg() == BTreePageId.LEAF){
+			return (BTreeLeafPage)this.getPage(tid, dirtypages, pid, perm);
+		}
+		else {
+			BTreeInternalPage internalPage = (BTreeInternalPage)this.getPage(tid, dirtypages, pid, Permissions.READ_ONLY);
+			BTreeEntry bTreeEntry;
+			BTreePageId nextPid;
+			Iterator<BTreeEntry> it = internalPage.reverseIterator();
+			if(it.hasNext()) {
+				bTreeEntry = it.next();
+			}
+			else {
+				throw new DbException("Find empty internalPage");
+			}
+			if(f == null){
+				nextPid = bTreeEntry.getRightChild();
+			}
+			else {
+				while (f.compare(Op.GREATER_THAN, bTreeEntry.getKey())&&it.hasNext()){
+					bTreeEntry = it.next();
+				}
+				if(f.compare(Op.LESS_THAN_OR_EQ, bTreeEntry.getKey())){
+					nextPid = bTreeEntry.getLeftChild();
+				}
+				else {
+					nextPid = bTreeEntry.getRightChild();
+				}
+			}
+			return findLeafPageReverse(tid, dirtypages, nextPid, perm, f);
+		}
+	}
+
+	BTreeLeafPage findLeafPageReverse(TransactionId tid, BTreePageId pid, Permissions perm,
+							   Field f)
+			throws DbException, TransactionAbortedException {
+		return findLeafPageReverse(tid, new HashMap<PageId, Page>(), pid, perm, f);
 	}
 
 	/**
@@ -1266,6 +1313,10 @@ public class BTreeFile implements DbFile {
 		return new BTreeFileIterator(this, tid);
 	}
 
+	public DbFileIterator reverseIterator(TransactionId tid){
+		return new BTreeFileReverseIterator(this, tid);
+	}
+
 }
 
 /**
@@ -1313,6 +1364,87 @@ class BTreeFileIterator extends AbstractDbFileIterator {
 
 		while (it == null && curp != null) {
 			BTreePageId nextp = curp.getRightSiblingId();
+			if(nextp == null) {
+				curp = null;
+			}
+			else {
+				curp = (BTreeLeafPage) Database.getBufferPool().getPage(tid,
+						nextp, Permissions.READ_ONLY);
+				it = curp.iterator();
+				if (!it.hasNext())
+					it = null;
+			}
+		}
+
+		if (it == null)
+			return null;
+		return it.next();
+	}
+
+	/**
+	 * rewind this iterator back to the beginning of the tuples
+	 */
+	public void rewind() throws DbException, TransactionAbortedException {
+		close();
+		open();
+	}
+
+	/**
+	 * close the iterator
+	 */
+	public void close() {
+		super.close();
+		it = null;
+		curp = null;
+	}
+}
+
+/**
+ *  my code
+ * 	BTreeFileReverseIterator for Lab3 Exercise 4
+ */
+class BTreeFileReverseIterator extends AbstractDbFileIterator {
+
+	Iterator<Tuple> it = null;
+	BTreeLeafPage curp = null;
+
+	TransactionId tid;
+	BTreeFile f;
+
+	/**
+	 * Constructor for this iterator
+	 * @param f - the BTreeFile containing the tuples
+	 * @param tid - the transaction id
+	 */
+	public BTreeFileReverseIterator(BTreeFile f, TransactionId tid) {
+		this.f = f;
+		this.tid = tid;
+	}
+
+	/**
+	 * Open this iterator by getting an iterator on the first leaf page
+	 */
+	public void open() throws DbException, TransactionAbortedException {
+		BTreeRootPtrPage rootPtr = (BTreeRootPtrPage) Database.getBufferPool().getPage(
+				tid, BTreeRootPtrPage.getId(f.getId()), Permissions.READ_ONLY);
+		BTreePageId root = rootPtr.getRootId();
+		curp = f.findLeafPageReverse(tid, root, Permissions.READ_ONLY, null);
+		it = curp.reverseIterator();
+	}
+
+	/**
+	 * Read the next tuple either from the current page if it has more tuples or
+	 * from the next page by following the right sibling pointer.
+	 *
+	 * @return the next tuple, or null if none exists
+	 */
+	@Override
+	protected Tuple readNext() throws TransactionAbortedException, DbException {
+		if (it != null && !it.hasNext())
+			it = null;
+
+		while (it == null && curp != null) {
+			BTreePageId nextp = curp.getLeftSiblingId();
 			if(nextp == null) {
 				curp = null;
 			}
