@@ -29,8 +29,9 @@ public class BufferPool {
     public static final int DEFAULT_PAGES = 50;
 
     //my code
-    private int numPages;
-    private HashMap<PageId, Page>currentPages;
+    private final int numPages;
+    private final ConcurrentHashMap<PageId, Page>currentPages;
+    private LockManager lockManager;
     /**
      * Creates a BufferPool that caches up to numPages pages.
      *
@@ -39,7 +40,8 @@ public class BufferPool {
     public BufferPool(int numPages) {
         // some code goes here
         this.numPages = numPages;
-        currentPages = new HashMap<>();
+        currentPages = new ConcurrentHashMap<>();
+        lockManager = new LockManager();
     }
     
     public static int getPageSize() {
@@ -74,8 +76,13 @@ public class BufferPool {
     public Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
         // some code goes here
+        if(perm == Permissions.READ_ONLY){
+            lockManager.acquiresLock(tid, pid, Lock.SHARED_LOCK);
+        }
+        else lockManager.acquiresLock(tid, pid, Lock.EXCLUSIVE_LOCK);
+
         if(!currentPages.containsKey(pid)){
-            if(currentPages.size() > numPages){
+            if(currentPages.size() == numPages){
                 evictPage();
             }
             DbFile dbFile = Database.getCatalog().getDatabaseFile(pid.getTableId());
@@ -97,6 +104,7 @@ public class BufferPool {
     public void releasePage(TransactionId tid, PageId pid) {
         // some code goes here
         // not necessary for lab1|lab2
+        lockManager.releasesLock(tid, pid);
     }
 
     /**
@@ -113,7 +121,7 @@ public class BufferPool {
     public boolean holdsLock(TransactionId tid, PageId p) {
         // some code goes here
         // not necessary for lab1|lab2
-        return false;
+        return lockManager.holdsLock(tid, p);
     }
 
     /**
