@@ -121,6 +121,9 @@ public class HeapFile implements DbFile {
                 pageArrayList.add(page);
                 return pageArrayList;
             }
+            else {
+                Database.getBufferPool().releasePage(tid, page.getId());
+            }
         }
         HeapPage newPage = new HeapPage(new HeapPageId(getId(), numPages()), HeapPage.createEmptyPageData());
         writePage(newPage);

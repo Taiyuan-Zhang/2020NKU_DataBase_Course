@@ -31,7 +31,8 @@ public class BufferPool {
     //my code
     private final int numPages;
     private final ConcurrentHashMap<PageId, Page>currentPages;
-    private LockManager lockManager;
+    private final LockManager lockManager;
+    private static int DEFAULT_MAXTIMEOUT = 5000;
     /**
      * Creates a BufferPool that caches up to numPages pages.
      *
@@ -77,9 +78,9 @@ public class BufferPool {
         throws TransactionAbortedException, DbException {
         // some code goes here
         if(perm == Permissions.READ_ONLY){
-            lockManager.acquiresLock(tid, pid, Lock.SHARED_LOCK);
+            lockManager.acquiresLock(tid, pid, Lock.SHARED_LOCK, DEFAULT_MAXTIMEOUT);
         }
-        else lockManager.acquiresLock(tid, pid, Lock.EXCLUSIVE_LOCK);
+        else lockManager.acquiresLock(tid, pid, Lock.EXCLUSIVE_LOCK, DEFAULT_MAXTIMEOUT);
 
         if(!currentPages.containsKey(pid)){
             if(currentPages.size() == numPages){
@@ -115,6 +116,7 @@ public class BufferPool {
     public void transactionComplete(TransactionId tid) throws IOException {
         // some code goes here
         // not necessary for lab1|lab2
+        transactionComplete(tid, true);
     }
 
     /** Return true if the specified transaction has a lock on the specified page */
@@ -135,6 +137,24 @@ public class BufferPool {
         throws IOException {
         // some code goes here
         // not necessary for lab1|lab2
+        if(commit){
+            flushPages(tid);
+        }
+        else {
+            for (PageId pid:currentPages.keySet()) {
+                Page page = currentPages.get(pid);
+                if(page.isDirty() == tid){
+                    DbFile dbFile = Database.getCatalog().getDatabaseFile(pid.getTableId());
+                    Page pageToRevert = dbFile.readPage(pid);
+                    currentPages.put(pid, pageToRevert);
+                }
+            }
+        }
+        for (PageId pid:currentPages.keySet()){
+            if(holdsLock(tid, pid)){
+                releasePage(tid, pid);
+            }
+        }
     }
 
     /**
