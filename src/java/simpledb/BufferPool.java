@@ -253,8 +253,9 @@ public class BufferPool {
         // some code goes here
         // not necessary for lab1
         Page page = currentPages.get(pid);
-        Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(page);
         page.markDirty(false, null);
+        Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(page);
+
     }
 
     /** Write all pages of the specified transaction to disk.
@@ -262,6 +263,11 @@ public class BufferPool {
     public synchronized  void flushPages(TransactionId tid) throws IOException {
         // some code goes here
         // not necessary for lab1|lab2
+        for (PageId pid:currentPages.keySet()) {
+            if(holdsLock(tid, pid)) {
+                flushPage(pid);
+            }
+        }
     }
 
     /**
@@ -271,13 +277,13 @@ public class BufferPool {
     private synchronized  void evictPage() throws DbException {
         // some code goes here
         // not necessary for lab1
-        PageId pid = new ArrayList<>(currentPages.keySet()).get(0);
-        try{
-            flushPage(pid);
-        }catch (Exception e){
-            e.printStackTrace();
+        for (Page page:currentPages.values()) {
+            if(page.isDirty() == null){
+                discardPage(page.getId());
+                return;
+            }
         }
-        discardPage(pid);
+        throw new DbException("all pages are dirty, NO STEAL!");
     }
 
 }
