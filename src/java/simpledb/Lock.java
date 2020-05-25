@@ -26,23 +26,20 @@ public class Lock {
 }
 
 class LockManager{
+    public static int DEFAULT_MAXTIMEOUT = 1000;
     ConcurrentHashMap<PageId, ArrayList<Lock>>lockMap;
 
     public LockManager(){
         this.lockMap = new ConcurrentHashMap<>();
     }
 
-    private synchronized void block(PageId pid, long start, long timeout)throws TransactionAbortedException{
-        if (System.currentTimeMillis() - start > timeout) {
-            throw new TransactionAbortedException();
-        }
-
+    private synchronized void block(long start, long timeout)throws TransactionAbortedException{
         try {
             wait(timeout);
-            if (System.currentTimeMillis() - start > timeout) {
+            if(System.currentTimeMillis() - start > timeout+100)
                 throw new TransactionAbortedException();
-            }
-        } catch (InterruptedException ignored) {
+        }
+        catch (InterruptedException ignored) {
         }
     }
 
@@ -73,14 +70,14 @@ class LockManager{
                         lock.setLockType(Lock.EXCLUSIVE_LOCK);
                         return;
                     }
-                    block(pid, start, randomTimeout);
+                    block(start, randomTimeout);
                     return;
                 }
             }
         }
         // Only one transaction may have an exclusive lock on an object.
         if(locks.get(0).getLockType() == Lock.EXCLUSIVE_LOCK){
-            block(pid, start, randomTimeout);
+            block(start, randomTimeout);
         }
         else {
             if (lockType == Lock.SHARED_LOCK) {
@@ -88,7 +85,7 @@ class LockManager{
                 locks.add(lock);
             }
             else {
-                block(pid, start, randomTimeout);
+                block(start, randomTimeout);
             }
         }
     }
