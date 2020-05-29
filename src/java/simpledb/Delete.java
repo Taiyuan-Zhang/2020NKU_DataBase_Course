@@ -80,7 +80,7 @@ public class Delete extends Operator {
             try {
                 Database.getBufferPool().deleteTuple(this.t, this.child.next());
                 this.deletedNo ++;
-            }catch (Exception e){
+            }catch (IOException e){
                 e.printStackTrace();
                 break;
             }

@@ -3,6 +3,7 @@ package simpledb;
 import java.io.*;
 
 import java.util.ArrayList;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -75,10 +76,21 @@ public class BufferPool {
     public Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
         // some code goes here
+        int lockType;
         if(perm == Permissions.READ_ONLY){
-            lockManager.acquiresLock(tid, pid, Lock.SHARED_LOCK, LockManager.DEFAULT_MAXTIMEOUT);
+            lockType = Lock.SHARED_LOCK;
         }
-        else lockManager.acquiresLock(tid, pid, Lock.EXCLUSIVE_LOCK, LockManager.DEFAULT_MAXTIMEOUT);
+        else lockType =  Lock.EXCLUSIVE_LOCK;
+        boolean lockAcquired = false;
+        long start = System.currentTimeMillis();
+        long timeout = new Random().nextInt(2000) + 1000;
+        while(!lockAcquired){
+            long now = System.currentTimeMillis();
+            if(now-start > timeout){
+                throw new TransactionAbortedException();
+            }
+            lockAcquired = lockManager.acquiresLock(tid,pid,lockType);
+        }
         if(!currentPages.containsKey(pid)){
             if(currentPages.size() == numPages){
                 evictPage();
@@ -122,20 +134,7 @@ public class BufferPool {
         // not necessary for lab1|lab2
         return lockManager.holdsLock(tid, p);
     }
-    private synchronized void restorePages(TransactionId tid) {
 
-        for (PageId pid : currentPages.keySet()) {
-            Page page = currentPages.get(pid);
-
-            if (page.isDirty() == tid) {
-                int tabId = pid.getTableId();
-                DbFile file =  Database.getCatalog().getDatabaseFile(tabId);
-                Page pageFromDisk = file.readPage(pid);
-
-                currentPages.put(pid, pageFromDisk);
-            }
-        }
-    }
 
     /**
      * Commit or abort a given transaction; release all locks associated to

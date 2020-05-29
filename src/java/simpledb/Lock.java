@@ -1,7 +1,6 @@
 package simpledb;
 
 import java.util.ArrayList;
-import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Lock {
@@ -26,66 +25,52 @@ public class Lock {
 }
 
 class LockManager{
-    public static int DEFAULT_MAXTIMEOUT = 1000;
     ConcurrentHashMap<PageId, ArrayList<Lock>>lockMap;
 
     public LockManager(){
         this.lockMap = new ConcurrentHashMap<>();
     }
 
-    private synchronized void block(long start, long timeout)throws TransactionAbortedException{
-        try {
-            wait(timeout);
-            if(System.currentTimeMillis() - start > timeout+100)
-                throw new TransactionAbortedException();
-        }
-        catch (InterruptedException ignored) {
-        }
-    }
-
-    public synchronized void acquiresLock(TransactionId tid, PageId pid, int lockType, int maxTimeout)throws TransactionAbortedException{
-        long start = System.currentTimeMillis();
-        Random rand =new Random();
-        long randomTimeout = rand.nextInt(maxTimeout + 1);
+    public synchronized boolean acquiresLock(TransactionId tid, PageId pid, int lockType){
         if(lockMap.get(pid) == null){
             Lock lock = new Lock(tid, lockType);
             ArrayList<Lock> locks = new ArrayList<>();
             locks.add(lock);
             lockMap.put(pid, locks);
-            return;
+            return true;
         }
         ArrayList<Lock> locks = lockMap.get(pid);
         for (Lock lock:locks) {
             if(lock.getTid() == tid){
                 if(lock.getLockType() == lockType)
-                    return;
+                    return true;
                 // lockType = EXCLUSIVE_LOCK, acquiresLock = SHARED_LOCK
                 if(lock.getLockType() == Lock.EXCLUSIVE_LOCK)
-                    return;
+                    return true;
                 // lockType = SHARED_LOCK, acquiresLock = EXCLUSIVE_LOCK
                 else{
                     // If transaction t is the only transaction holding a shared lock on an object o,
                     // t may upgrade its lock on o to an exclusive lock.
                     if(locks.size() == 1){
                         lock.setLockType(Lock.EXCLUSIVE_LOCK);
-                        return;
+                        return true;
                     }
-                    block(start, randomTimeout);
-                    return;
+                    return false;
                 }
             }
         }
         // Only one transaction may have an exclusive lock on an object.
         if(locks.get(0).getLockType() == Lock.EXCLUSIVE_LOCK){
-            block(start, randomTimeout);
+            return false;
         }
         else {
             if (lockType == Lock.SHARED_LOCK) {
                 Lock lock = new Lock(tid, lockType);
                 locks.add(lock);
+                return true;
             }
             else {
-                block(start, randomTimeout);
+                return false;
             }
         }
     }
