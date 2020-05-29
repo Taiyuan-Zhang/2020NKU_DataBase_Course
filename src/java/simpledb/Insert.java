@@ -1,5 +1,7 @@
 package simpledb;
 
+import java.io.IOException;
+
 /**
  * Inserts tuples read from the child operator into the tableId specified in the
  * constructor
@@ -91,7 +93,7 @@ public class Insert extends Operator {
             try{
                 Database.getBufferPool().insertTuple(this.t, this.tableId, this.child.next());
                 this.insertedNo ++;
-            }catch (Exception e){
+            }catch (IOException e){
                 e.printStackTrace();
             }
         }
