@@ -45,8 +45,10 @@ class LockManager{
                 if(lock.getLockType() == lockType)
                     return true;
                 // lockType = EXCLUSIVE_LOCK, acquiresLock = SHARED_LOCK
-                if(lock.getLockType() == Lock.EXCLUSIVE_LOCK)
+                if(lock.getLockType() == Lock.EXCLUSIVE_LOCK) {
+                    lock.setLockType(Lock.SHARED_LOCK);
                     return true;
+                }
                 // lockType = SHARED_LOCK, acquiresLock = EXCLUSIVE_LOCK
                 else{
                     // If transaction t is the only transaction holding a shared lock on an object o,
