@@ -196,7 +196,7 @@ repo for 2020NKU_DataBase_Course, final project is to write a basic database man
 
 #### Exercise 4.
 
-**Implement the transactionComplete() method in BufferPool . **
+**Implement the transactionComplete() method in BufferPool .**
 
 ---
 
